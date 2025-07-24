@@ -1,251 +1,328 @@
-# N8N Self-Hosted Setup
+# 🤖 n8n Automation Platform
 
-Production-ready n8n workflow automation platform with PostgreSQL and Redis.
+Production-ready n8n setup với Docker Compose, hỗ trợ 2 môi trường: **Development** và **Production**.
 
-## 🏗️ Architecture
+## 🚀 **Quick Start**
 
-This setup includes:
-- **n8n**: Workflow automation platform
-- **PostgreSQL 16**: Primary database for workflows and credentials
-- **Redis 7**: Queue management and caching
-- **Docker Compose**: Container orchestration
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Docker Engine 20.10+
-- Docker Compose 2.0+
-- At least 2GB RAM
-- 10GB disk space
-
-### 1. Clone and Setup
+### **1. Clone & Setup**
 ```bash
-git clone <your-repo-url>
+git clone <repository-url>
 cd n8n
-```
-
-### 2. Configure Environment
-```bash
-# Copy environment template
 cp env.template .env
-
-# Generate encryption key
-openssl rand -base64 32
-
-# Edit .env file with your settings
-nano .env
+# Edit .env với thông tin của bạn
 ```
 
-### 3. Start Services
-```bash
-# Production with nginx + SSL (Recommended)
-./scripts/setup-nginx.sh
+### **2. Choose Environment**
 
-# Or production without nginx
+#### **🔧 Development Environment**
+```bash
+# Simple setup: PostgreSQL + n8n only
+docker-compose -f docker-compose.dev.yml up -d
+
+# Access: http://localhost:5678
+```
+
+#### **🏭 Production Environment**  
+```bash
+# Full setup: PostgreSQL + Redis + n8n + Nginx + SSL
 docker-compose -f docker-compose.prod.yml up -d
 
-# Or development setup
-docker-compose up -d
+# Access: https://your-domain.com
 ```
 
-### 4. Access n8n
-Open http://localhost:5678 in your browser.
+## 📋 **Environment Comparison**
 
-## 👥 User Management Setup
+| Feature | Development | Production |
+|---------|-------------|------------|
+| **Database** | ✅ PostgreSQL | ✅ PostgreSQL |
+| **Caching** | ❌ No Redis | ✅ Redis |
+| **SSL/HTTPS** | ❌ HTTP only | ✅ Let's Encrypt |
+| **Reverse Proxy** | ❌ Direct access | ✅ Nginx |
+| **User Management** | 🔧 Optional | ✅ Enabled |
+| **SAML SSO** | ❌ Not available | ✅ Microsoft Entra ID |
+| **Port Exposure** | ✅ Direct ports | ❌ Hidden behind proxy |
+| **Resource Limits** | ❌ No limits | ✅ Memory/CPU limits |
+| **Health Checks** | ✅ Basic | ✅ Full monitoring |
 
-For multi-user environments, enable user management instead of basic auth:
+## 🔧 **Development Setup**
 
-### Quick Setup (Recommended)
+### **Prerequisites**
+- Docker & Docker Compose
+- 4GB+ RAM available
+
+### **Configuration**
 ```bash
-# Run the interactive setup script
-./scripts/enable-user-management.sh
+# Edit .env for development
+N8N_HOST=localhost
+N8N_PROTOCOL=http
+POSTGRES_PASSWORD=n8n_dev_pass
+N8N_USER_MANAGEMENT_DISABLED=true
 ```
 
-### Manual Setup
-1. Update your `.env` file:
+### **Usage**
 ```bash
-N8N_BASIC_AUTH_ACTIVE=false
-N8N_USER_MANAGEMENT_DISABLED=false
-N8N_OWNER_EMAIL=admin@yourcompany.com
-N8N_OWNER_PASSWORD=your-secure-password
-```
-
-2. Restart services:
-```bash
-docker-compose -f docker-compose.prod.yml down
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-3. Access n8n and complete owner account setup
-
-📚 **See [User Management Guide](./docs/USER_MANAGEMENT.md) for complete documentation**
-
-## 🔐 Enterprise Authentication
-
-For enterprise environments, n8n supports Microsoft Entra ID (Azure AD) integration:
-
-### Microsoft Entra ID Setup
-```bash
-# Run the Entra ID setup script
-./scripts/setup-entra-id.sh
-```
-
-**Features:**
-- ✅ SAML 2.0 Single Sign-On (SSO)
-- ✅ Automatic user provisioning from Azure AD
-- ✅ Role mapping: Azure AD Groups → n8n Roles
-- ✅ Group-based access control
-- ✅ Just-in-Time (JIT) provisioning
-
-📚 **See [Entra ID Integration Guide](./docs/ENTRA_ID_INTEGRATION.md) for detailed setup**
-
-## 🌐 Production Deployment with Nginx
-
-For production environments, especially when using SAML/Entra ID, nginx reverse proxy is **HIGHLY RECOMMENDED**:
-
-### Why Nginx?
-- ✅ **SSL/TLS Termination** - Automatic HTTPS with Let's Encrypt
-- ✅ **Security Headers** - XSS protection, HSTS, CSP
-- ✅ **Rate Limiting** - DDoS protection and API throttling
-- ✅ **WebSocket Support** - Proper handling for n8n editor
-- ✅ **SAML Compatibility** - Required for enterprise SSO
-
-### Quick Setup
-```bash
-# Setup nginx with automatic SSL
-./scripts/setup-nginx.sh
-```
-
-**When to use Nginx:**
-- 🏢 **Production deployments**
-- 🔐 **SAML/Entra ID integration** (HTTPS required)
-- 🌐 **Custom domain access**
-- 🛡️ **Enhanced security requirements**
-- ⚡ **Performance optimization**
-
-**Deployment Options:**
-- `docker-compose.yml` - Basic setup (development)
-- `docker-compose.prod.yml` - Production without nginx
-- `docker-compose.nginx.yml` - Production with nginx + SSL
-
-## 🔒 Security Best Practices
-
-### ✅ Implemented
-- [x] Environment variables for sensitive data
-- [x] Strong encryption key requirement
-- [x] Password-protected Redis
-- [x] Health checks for all services
-- [x] Resource limits
-- [x] Custom Docker network
-- [x] Named volumes for data persistence
-- [x] Timezone configuration
-
-### 🔧 Required Configuration
-1. **Change default passwords** in `.env` file
-2. **Generate encryption key**: `openssl rand -base64 32`
-3. **Set strong database password**
-4. **Configure timezone** for your region
-5. **Set proper domain** for production webhooks
-
-### 🚨 Production Checklist
-- [ ] **Set up nginx reverse proxy:** `./scripts/setup-nginx.sh`
-- [ ] **Configure SSL certificates** (automatic with Let's Encrypt)
-- [ ] **Disable basic auth, enable user management**
-- [ ] **Consider enterprise SSO** (Entra ID/SAML) for organizations
-- [ ] **Set up backup strategy** for PostgreSQL and n8n data
-- [ ] **Configure monitoring and logging**
-- [ ] **Implement firewall rules** (ports 80, 443 only)
-- [ ] **Use environment variables** for sensitive data
-- [ ] **Regular security updates and backups**
-- [ ] **Test disaster recovery procedures**
-
-## 📊 Monitoring & Maintenance
-
-### Health Checks
-All services include health checks:
-```bash
-# Check service status
-docker-compose ps
+# Start development environment
+docker-compose -f docker-compose.dev.yml up -d
 
 # View logs
-docker-compose logs -f n8n
+docker-compose -f docker-compose.dev.yml logs -f
+
+# Stop
+docker-compose -f docker-compose.dev.yml down
 ```
 
-### Backup Strategy
+### **Development Features**
+- 🔍 **Debug logging** enabled
+- 🏠 **Local access** via localhost:5678
+- 🗄️ **Database exposed** on port 5432 for debugging
+- 🔄 **Auto-restart** containers
+- 💾 **Persistent data** in Docker volumes
+
+## 🏭 **Production Setup**
+
+### **Prerequisites**
+- Docker & Docker Compose
+- Domain name với DNS pointing to server
+- 8GB+ RAM recommended
+
+### **Configuration**
 ```bash
-# Backup PostgreSQL data
-docker-compose exec postgres pg_dump -U n8n n8n > backup_$(date +%Y%m%d).sql
-
-# Backup n8n data
-docker-compose exec n8n tar -czf /tmp/n8n_backup.tar.gz /home/node/.n8n
-docker cp $(docker-compose ps -q n8n):/tmp/n8n_backup.tar.gz ./n8n_backup_$(date +%Y%m%d).tar.gz
+# Edit .env for production
+N8N_HOST=n8n.yourcompany.com
+N8N_PROTOCOL=https
+POSTGRES_PASSWORD=your-strong-password
+REDIS_PASSWORD=your-redis-password
+SSL_EMAIL=admin@yourcompany.com
 ```
 
-### Updates
+### **Deployment**
 ```bash
-# Update to latest version
-docker-compose pull
-docker-compose down
-docker-compose up -d
+# 1. Start production stack
+docker-compose -f docker-compose.prod.yml up -d
+
+# 2. Monitor SSL certificate generation
+docker-compose -f docker-compose.prod.yml logs certbot
+
+# 3. Verify all services
+docker-compose -f docker-compose.prod.yml ps
 ```
 
-## 🔧 Configuration
+### **Production Features**
+- 🔒 **SSL/TLS** với Let's Encrypt auto-renewal
+- 🌐 **Nginx reverse proxy** với security headers
+- 📊 **Redis caching** cho performance
+- 👥 **User management** với role-based access
+- 🔐 **SAML SSO** với Microsoft Entra ID
+- 📈 **Resource monitoring** và limits
+- 🛡️ **Security hardening** 
 
-### Environment Variables
-Key settings in `.env`:
+## 🔐 **Security Best Practices**
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `N8N_ENCRYPTION_KEY` | 32+ char encryption key | ✅ |
-| `POSTGRES_PASSWORD` | Database password | ✅ |
-| `REDIS_PASSWORD` | Redis password | ✅ |
-| `GENERIC_TIMEZONE` | Your timezone | ✅ |
-| `WEBHOOK_URL` | Public webhook URL | Production |
+### **✅ Required Actions**
+1. **Change all passwords** trong `.env`
+2. **Generate strong encryption key**: `openssl rand -base64 32`
+3. **Enable user management** cho production
+4. **Setup SSL certificate** với valid domain
+5. **Configure email** cho user invitations
 
-### Performance Tuning
-- **Memory**: Adjust resource limits in docker-compose.prod.yml
-- **Executions**: Configure `EXECUTIONS_DATA_MAX_AGE` for cleanup
-- **Redis**: Enable for queue management in high-load scenarios
+### **🚨 Security Checklist**
+```bash
+# 1. Verify no default passwords
+grep -E "CHANGE_ME|password|secret" .env
 
-## 🛠️ Development vs Production
+# 2. Check file permissions
+ls -la .env  # Should not be world-readable
 
-### Development (docker-compose.yml)
-- Basic configuration
-- Simplified setup
-- Local development focused
+# 3. Verify SSL certificate
+curl -I https://your-domain.com
 
-### Production (docker-compose.prod.yml)
-- Health checks
-- Resource limits
-- Security hardening
-- Performance optimization
+# 4. Test authentication
+curl -k https://your-domain.com/healthz
+```
 
-## 📚 References
+## 👥 **User Management**
 
-- [n8n Docker Documentation](https://docs.n8n.io/hosting/installation/docker)
-- [n8n Hosting Examples](https://github.com/n8n-io/n8n-hosting)
-- [Security Best Practices](https://docs.n8n.io/hosting/security/)
-- [User Management Guide](./docs/USER_MANAGEMENT.md) - Comprehensive guide for multi-user setup
-- [Entra ID Integration Guide](./docs/ENTRA_ID_INTEGRATION.md) - Microsoft Azure AD SAML SSO setup
+### **Setup Owner Account**
+```bash
+# In .env file
+N8N_OWNER_EMAIL=admin@yourcompany.com
+N8N_OWNER_PASSWORD=strong-password-here
+N8N_USER_MANAGEMENT_DISABLED=false
+```
 
-## 🤝 Contributing
+### **User Roles**
+- **👑 Owner**: Full access, can manage all users
+- **🔧 Admin**: Can manage workflows và users  
+- **👤 Member**: Can create và edit workflows
+- **👁️ Guest**: Read-only access
 
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open Pull Request
+### **Microsoft Entra ID (SAML SSO)**
+```bash
+# Enable SAML in .env
+N8N_SAML_ENABLED=true
+N8N_SAML_METADATA_URL=https://login.microsoftonline.com/{tenant}/federationmetadata/2007-06/federationmetadata.xml
+```
 
-## 📝 License
+Xem [docs/ENTRA_ID_INTEGRATION.md](./docs/ENTRA_ID_INTEGRATION.md) cho detailed setup.
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+## 📊 **Monitoring & Maintenance**
 
-## 🆘 Support
+### **Health Checks**
+```bash
+# Check all services
+docker-compose -f docker-compose.prod.yml ps
 
-- [n8n Community Forum](https://community.n8n.io/)
-- [n8n Documentation](https://docs.n8n.io/)
-- [GitHub Issues](https://github.com/n8n-io/n8n/issues)
+# Check specific service health
+docker-compose -f docker-compose.prod.yml exec n8n wget -qO- http://localhost:5678/healthz
+
+# View metrics (if enabled)
+curl https://your-domain.com/metrics
+```
+
+### **Database Maintenance**
+```bash
+# Backup database
+docker-compose -f docker-compose.prod.yml exec postgres pg_dump -U n8n n8n > backup.sql
+
+# View database size
+docker-compose -f docker-compose.prod.yml exec postgres psql -U n8n -c "\l+"
+```
+
+### **Log Management**
+```bash
+# View all logs
+docker-compose -f docker-compose.prod.yml logs
+
+# Follow specific service
+docker-compose -f docker-compose.prod.yml logs -f n8n
+
+# Clear logs (careful!)
+docker-compose -f docker-compose.prod.yml down
+docker system prune -f
+```
+
+## 🔄 **Backup & Recovery**
+
+### **Automated Backup Script**
+```bash
+#!/bin/bash
+# backup.sh
+DATE=$(date +%Y%m%d_%H%M%S)
+docker-compose -f docker-compose.prod.yml exec -T postgres pg_dump -U n8n n8n > "backup_${DATE}.sql"
+docker cp n8n_app:/home/node/.n8n ./n8n_backup_${DATE}/
+echo "Backup completed: backup_${DATE}.sql"
+```
+
+### **Recovery**
+```bash
+# Restore database
+docker-compose -f docker-compose.prod.yml exec -T postgres psql -U n8n n8n < backup.sql
+
+# Restore n8n data
+docker cp ./n8n_backup/ n8n_app:/home/node/.n8n/
+```
+
+## 🛠️ **Troubleshooting**
+
+### **Common Issues**
+
+#### **SSL Certificate Problems**
+```bash
+# Check certificate status
+docker-compose -f docker-compose.prod.yml logs certbot
+
+# Manual certificate renewal
+docker-compose -f docker-compose.prod.yml exec certbot certbot renew --dry-run
+```
+
+#### **Database Connection Issues**
+```bash
+# Check database health
+docker-compose -f docker-compose.prod.yml exec postgres pg_isready -U n8n
+
+# View database logs
+docker-compose -f docker-compose.prod.yml logs postgres
+```
+
+#### **Nginx Configuration**
+```bash
+# Test nginx config
+docker-compose -f docker-compose.prod.yml exec nginx nginx -t
+
+# Reload nginx (after config changes)
+docker-compose -f docker-compose.prod.yml restart nginx
+```
+
+## 📚 **Documentation**
+
+- 📖 [Security Guide](./SECURITY.md)
+- 👥 [User Management](./docs/USER_MANAGEMENT.md)
+- 🔐 [Entra ID Integration](./docs/ENTRA_ID_INTEGRATION.md)
+- 🔄 [Jira + Teams Automation](./docs/JIRA_TEAMS_AUTOMATION_GUIDE.md)
+- 📝 [Gitignore Guide](./docs/GITIGNORE_GUIDE.md)
+
+## ⚙️ **Advanced Configuration**
+
+### **Custom Nginx Configuration**
+Edit `nginx/nginx.conf` để customize:
+- Rate limiting
+- Additional security headers  
+- Custom routing rules
+- WebSocket settings
+
+### **Performance Tuning**
+```bash
+# In .env - adjust based on your server
+POSTGRES_SHARED_BUFFERS=256MB
+POSTGRES_EFFECTIVE_CACHE_SIZE=1GB
+N8N_METRICS=true
+EXECUTIONS_DATA_MAX_AGE=168  # 7 days
+```
+
+### **Multi-Instance Setup**
+```bash
+# Scale n8n instances (production only)
+docker-compose -f docker-compose.prod.yml up -d --scale n8n=3
+```
+
+## 🤝 **Contributing**
+
+1. Fork repository
+2. Create feature branch
+3. Make changes
+4. Test in both dev và prod environments
+5. Submit pull request
+
+## 📄 **License**
+
+This project is licensed under the MIT License.
 
 ---
 
-**⚠️ Important**: Always use the production configuration (`docker-compose.prod.yml`) for production deployments.
+## 🎯 **Project Structure**
+
+```
+n8n/
+├── docker-compose.dev.yml      # Development environment
+├── docker-compose.prod.yml     # Production environment  
+├── env.template               # Environment variables template
+├── .gitignore                # Git ignore rules
+├── README.md                 # This file
+├── SECURITY.md              # Security best practices
+├── docs/                    # Documentation
+│   ├── USER_MANAGEMENT.md
+│   ├── ENTRA_ID_INTEGRATION.md
+│   ├── JIRA_TEAMS_AUTOMATION.md
+│   └── GITIGNORE_GUIDE.md
+├── scripts/                 # Automation scripts
+│   ├── enable-user-management.sh
+│   ├── setup-entra-id.sh
+│   └── setup-nginx.sh
+├── nginx/                   # Nginx configuration
+│   ├── nginx.conf
+│   └── html/
+└── workflows/              # n8n workflow templates
+    └── jira-teams-automation.json
+```
+
+**🎉 Happy Automating with n8n!** 🤖

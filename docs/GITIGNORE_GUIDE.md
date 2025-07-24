@@ -132,10 +132,8 @@ env.template
 setup-simple.env
 
 # Docker configurations
-docker-compose.yml
-docker-compose.simple.yml
+docker-compose.dev.yml
 docker-compose.prod.yml
-docker-compose.nginx.yml
 
 # Documentation
 README.md

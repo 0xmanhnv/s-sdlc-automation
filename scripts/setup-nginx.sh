@@ -119,16 +119,17 @@ mkdir -p nginx/html
 # Choose nginx configuration based on environment
 if [ "$env_choice" = "1" ]; then
     nginx_config="nginx/nginx.conf"
-    compose_file="docker-compose.nginx.yml"
+    compose_file="docker-compose.prod.yml"
     echo -e "${GREEN}Using production nginx configuration with SSL${NC}"
 else
     # Copy dev config to main config location for development
     cp nginx/nginx-dev.conf nginx/nginx.conf.dev
     nginx_config="nginx/nginx.conf.dev"
-    compose_file="docker-compose.nginx.yml"
+    compose_file="docker-compose.dev.yml"
     
-    # Modify docker-compose for development (remove certbot, change nginx config)
+    # Note: Dev environment doesn't include nginx by default
     echo -e "${GREEN}Using development nginx configuration (HTTP only)${NC}"
+    echo -e "${YELLOW}Note: Development uses direct n8n access. For nginx testing, use production mode.${NC}"
 fi
 
 echo ""
@@ -164,8 +165,8 @@ echo "Starting n8n with nginx reverse proxy..."
 
 if [ "$env_choice" = "1" ]; then
     # Production with SSL
-    docker-compose -f docker-compose.nginx.yml down --remove-orphans
-    docker-compose -f docker-compose.nginx.yml up -d
+    docker-compose -f docker-compose.prod.yml down --remove-orphans
+    docker-compose -f docker-compose.prod.yml up -d
     
     echo ""
     echo -e "${GREEN}✅ Services started successfully!${NC}"
@@ -178,23 +179,19 @@ if [ "$env_choice" = "1" ]; then
     sleep 30
     
     # Check certificate status
-    if docker-compose -f docker-compose.nginx.yml logs certbot | grep -q "Successfully received certificate"; then
+    if docker-compose -f docker-compose.prod.yml logs certbot | grep -q "Successfully received certificate"; then
         echo -e "${GREEN}✅ SSL certificate obtained successfully!${NC}"
     else
         echo -e "${YELLOW}⏳ SSL certificate generation in progress...${NC}"
-        echo "Check status with: docker-compose -f docker-compose.nginx.yml logs certbot"
+        echo "Check status with: docker-compose -f docker-compose.prod.yml logs certbot"
     fi
     
 else
     # Development without SSL
-    # Create a modified compose file for development
-    sed 's/nginx\/nginx.conf/nginx\/nginx-dev.conf/' docker-compose.nginx.yml > docker-compose.nginx-dev.yml
-    # Remove certbot service from dev compose
-    grep -v -A 20 "certbot:" docker-compose.nginx-dev.yml > docker-compose.nginx-dev.tmp.yml
-    mv docker-compose.nginx-dev.tmp.yml docker-compose.nginx-dev.yml
-    
-    docker-compose -f docker-compose.nginx-dev.yml down --remove-orphans
-    docker-compose -f docker-compose.nginx-dev.yml up -d
+    echo -e "${YELLOW}Note: For development, use docker-compose.dev.yml directly${NC}"
+    echo -e "${YELLOW}Development environment doesn't typically need nginx reverse proxy${NC}"
+    docker-compose -f docker-compose.dev.yml down --remove-orphans
+    docker-compose -f docker-compose.dev.yml up -d
     
     echo -e "${GREEN}✅ Development services started successfully!${NC}"
 fi
@@ -214,9 +211,9 @@ echo ""
 echo -e "${BLUE}=== Service Status ===${NC}"
 
 if [ "$env_choice" = "1" ]; then
-    docker-compose -f docker-compose.nginx.yml ps
+    docker-compose -f docker-compose.prod.yml ps
 else
-    docker-compose -f docker-compose.nginx-dev.yml ps
+    docker-compose -f docker-compose.dev.yml ps
 fi
 
 echo ""
@@ -228,16 +225,16 @@ if [ "$env_choice" = "1" ]; then
     echo "3. Complete user setup or SAML configuration"
     echo ""
     echo "📊 Monitor logs:"
-    echo "   ${YELLOW}docker-compose -f docker-compose.nginx.yml logs -f${NC}"
+    echo "   ${YELLOW}docker-compose -f docker-compose.prod.yml logs -f${NC}"
     echo ""
     echo "🔍 Check SSL certificate:"
-    echo "   ${YELLOW}docker-compose -f docker-compose.nginx.yml logs certbot${NC}"
+    echo "   ${YELLOW}docker-compose -f docker-compose.prod.yml logs certbot${NC}"
 else
     echo "1. Visit http://${domain_name} to access n8n"
     echo "2. Complete user setup"
     echo ""
     echo "📊 Monitor logs:"
-    echo "   ${YELLOW}docker-compose -f docker-compose.nginx-dev.yml logs -f${NC}"
+    echo "   ${YELLOW}docker-compose -f docker-compose.dev.yml logs -f${NC}"
 fi
 
 echo ""

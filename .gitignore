@@ -17,6 +17,8 @@
 # n8n user data and credentials (contains sensitive info)
 .n8n/
 n8n_data/
+n8n_dev_data/
+n8n_prod_data/
 
 # Local workflow exports (may contain credentials)
 workflows/exports/
@@ -29,9 +31,13 @@ workflows/backups/
 .data/
 data/
 postgres_data/
+postgres_dev_data/
+postgres_prod_data/
 
 # Redis data
 redis_data/
+redis_dev_data/
+redis_prod_data/
 
 # Database backups (may contain sensitive data)
 *.sql
@@ -76,7 +82,6 @@ docker-logs/
 # Docker override files (for local customization)
 docker-compose.override.yml
 docker-compose.local.yml
-docker-compose.dev.yml
 
 # Generated docker files
 docker-compose.nginx-dev.yml

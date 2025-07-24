@@ -47,7 +47,7 @@ The production configuration uses a custom Docker network:
 
 ```yaml
 networks:
-  n8n-network:
+  n8n:
     driver: bridge
 ```
 
