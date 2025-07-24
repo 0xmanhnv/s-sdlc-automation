@@ -1,0 +1,182 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║                    JIRA CLOUD + TEAMS AUTOMATION FLOW                   ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           🎫 JIRA CLOUD EVENTS                         │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                    ┌───────────────┼───────────────┐
+                    │               │               │
+              ┌──────▼──────┐ ┌─────▼─────┐ ┌─────▼─────┐
+              │📋 Issue     │ │🔄 Status  │ │👤 User    │
+              │Created      │ │Changed    │ │Assigned   │
+              └─────────────┘ └───────────┘ └───────────┘
+                    │               │               │
+                    └───────────────┼───────────────┘
+                                    │
+                            ┌───────▼────────┐
+                            │  WEBHOOK POST  │
+                            │ TO N8N SERVER  │
+                            └───────┬────────┘
+                                    │
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           🔄 N8N PROCESSING LAYER                      │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                         ┌──────────▼──────────┐
+                         │   WEBHOOK TRIGGER   │
+                         │ https://n8n.com/    │
+                         │ webhook/jira-hook   │
+                         └──────────┬──────────┘
+                                    │
+                    ┌───────────────┼───────────────┐
+                    │               │               │
+              ┌─────▼─────┐   ┌─────▼─────┐   ┌───▼────┐
+              │🚨 Critical│   │📋 Status  │   │👤 User │
+              │Filter     │   │Filter     │   │Filter  │
+              │IF Priority│   │IF Updated │   │IF Assign│
+              │= Critical │   │= Status   │   │= Person│
+              └─────┬─────┘   └─────┬─────┘   └───┬────┘
+                    │               │             │
+                    │               │             │
+              ┌─────▼─────┐   ┌─────▼─────┐   ┌───▼────┐
+              │🎨 Format  │   │🎨 Format  │   │🎨 Format│
+              │Critical   │   │Status     │   │Assign  │
+              │Message    │   │Message    │   │Message │
+              └─────┬─────┘   └─────┬─────┘   └───┬────┘
+                    │               │             │
+┌─────────────────────────────────────────────────────────────────────────┐
+│                       💬 MICROSOFT TEAMS DELIVERY                      │
+└─────────────────────────────────────────────────────────────────────────┘
+                    │               │             │
+            ┌───────▼───────┐ ┌─────▼─────┐ ┌─────▼─────┐
+            │🚨 #alerts     │ │📋 #updates│ │👤 Direct  │
+            │Channel        │ │Channel    │ │Message    │
+            │@channel       │ │Team       │ │Individual │
+            │Notification   │ │Updates    │ │User       │
+            └───────────────┘ └───────────┘ └───────────┘
+
+═══════════════════════════════════════════════════════════════════════════
+
+🔧 TECHNICAL FLOW DETAILS:
+
+1. JIRA WEBHOOK CONFIGURATION:
+   ┌─────────────────────────────────────┐
+   │ Jira Settings → Webhooks            │
+   │ ├─ Issue created                    │
+   │ ├─ Issue updated                    │
+   │ ├─ Issue assigned                   │
+   │ └─ POST to: n8n-server/webhook/    │
+   └─────────────────────────────────────┘
+
+2. N8N WORKFLOW NODES:
+   ┌─────────────────────────────────────┐
+   │ [1] Webhook Trigger                 │
+   │     ├─ Receives Jira JSON payload   │
+   │     └─ Parses issue data            │
+   │                                     │
+   │ [2] IF Condition Nodes              │
+   │     ├─ Priority = "Critical"        │
+   │     ├─ Status changed               │
+   │     └─ User assignment              │
+   │                                     │
+   │ [3] Format Message Nodes            │
+   │     ├─ Extract issue fields         │
+   │     ├─ Create Teams message         │
+   │     └─ Add action buttons           │
+   │                                     │
+   │ [4] HTTP Request to Teams           │
+   │     ├─ POST to Teams webhook        │
+   │     └─ Send formatted message       │
+   └─────────────────────────────────────┘
+
+3. TEAMS WEBHOOK SETUP:
+   ┌─────────────────────────────────────┐
+   │ Teams Channel → Connectors          │
+   │ ├─ Incoming Webhook                 │
+   │ ├─ Name: "Jira Notifications"       │
+   │ └─ Copy webhook URL                 │
+   └─────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════
+
+📊 MESSAGE FLOW EXAMPLES:
+
+🚨 CRITICAL ISSUE ALERT:
+┌──────────────────────────────────────────────────────────────────────┐
+│ 🚨 CRITICAL ISSUE CREATED                                           │
+│                                                                      │
+│ Issue: PROJ-123 - Database connection failure                       │
+│ Priority: Critical                                                   │
+│ Assignee: John Doe                                                   │
+│ Reporter: Jane Smith                                                 │
+│                                                                      │
+│ [View in Jira] [Add Comment] [Change Status]                        │
+└──────────────────────────────────────────────────────────────────────┘
+
+📋 STATUS UPDATE:
+┌──────────────────────────────────────────────────────────────────────┐
+│ 📋 Issue Status Updated                                             │
+│                                                                      │
+│ PROJ-124: API endpoint optimization                                 │
+│ Status: In Progress → Done                                          │
+│ Assignee: Mike Wilson                                               │
+│                                                                      │
+│ [View in Jira]                                                      │
+└──────────────────────────────────────────────────────────────────────┘
+
+👤 ASSIGNMENT NOTIFICATION:
+┌──────────────────────────────────────────────────────────────────────┐
+│ 👤 You have been assigned a new issue                              │
+│                                                                      │
+│ PROJ-125: Frontend bug fix                                          │
+│ Priority: High                                                       │
+│ Due Date: Tomorrow                                                   │
+│                                                                      │
+│ [Accept] [View Details] [Reassign]                                  │
+└──────────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════
+
+🎯 AUTOMATION SCENARIOS:
+
+Scenario 1: BUG TRIAGE WORKFLOW
+┌────────────────┐    ┌────────────────┐    ┌────────────────┐
+│ Bug Report     │───▶│ Auto-classify  │───▶│ Route to Team  │
+│ • Created      │    │ • Priority     │    │ • Assign owner │
+│ • Labeled      │    │ • Component    │    │ • Set due date │
+└────────────────┘    └────────────────┘    └────────────────┘
+         │                       │                      │
+         ▼                       ▼                      ▼
+┌────────────────┐    ┌────────────────┐    ┌────────────────┐
+│ Teams Alert    │    │ Update Board   │    │ Create Sprint  │
+│ • @channel     │    │ • Move column  │    │ • Plan item    │
+│ • Tag experts  │    │ • Update story │    │ • Notify PM    │
+└────────────────┘    └────────────────┘    └────────────────┘
+
+Scenario 2: SPRINT PROGRESS TRACKING
+┌────────────────┐    ┌────────────────┐    ┌────────────────┐
+│ Task Complete  │───▶│ Calculate %    │───▶│ Update Team    │
+│ • Status=Done  │    │ • Sprint burn  │    │ • Progress msg │
+│ • Log hours    │    │ • Remaining    │    │ • Charts/Stats │
+└────────────────┘    └────────────────┘    └────────────────┘
+
+Scenario 3: SLA MONITORING
+┌────────────────┐    ┌────────────────┐    ┌────────────────┐
+│ Issue Aging    │───▶│ Check SLA      │───▶│ Escalation     │
+│ • >3 days old  │    │ • Compare time │    │ • Notify mgmt  │
+│ • No updates   │    │ • Priority rules│    │ • Auto-bump    │
+└────────────────┘    └────────────────┘    └────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════
+
+⚙️ CONFIGURATION SUMMARY:
+
+JIRA SETUP:               N8N SETUP:                TEAMS SETUP:
+├─ API Token             ├─ Webhook endpoint        ├─ Incoming webhooks
+├─ Webhook config        ├─ Filter conditions      ├─ Channel permissions  
+├─ Project permissions   ├─ Message templates      ├─ User mentions
+└─ Field customization   └─ Routing logic          └─ Card formatting
+
+═══════════════════════════════════════════════════════════════════════════ 

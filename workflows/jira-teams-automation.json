@@ -1,0 +1,202 @@
+{
+  "name": "Jira Cloud → Teams Notifications",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "jira-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-jira",
+      "name": "Jira Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "critical-priority",
+              "leftValue": "={{ $json.issue.fields.priority.name }}",
+              "rightValue": "Critical",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "filter-critical",
+      "name": "Filter Critical Issues",
+      "type": "n8n-nodes-base.if",
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "id": "status-change",
+              "leftValue": "={{ $json.webhookEvent }}",
+              "rightValue": "jira:issue_updated",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "filter-status-change",
+      "name": "Filter Status Changes",
+      "type": "n8n-nodes-base.if", 
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "webhook": {
+          "url": "YOUR_TEAMS_WEBHOOK_URL_CRITICAL"
+        },
+        "httpMethod": "POST",
+        "sendBinaryData": false,
+        "specifyHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "🚨 **CRITICAL ISSUE ALERT** 🚨"
+            },
+            {
+              "name": "attachments",
+              "value": "=[{\n  \"contentType\": \"application/vnd.microsoft.card.adaptive\",\n  \"content\": {\n    \"type\": \"AdaptiveCard\",\n    \"version\": \"1.3\",\n    \"body\": [\n      {\n        \"type\": \"TextBlock\",\n        \"text\": \"🚨 Critical Issue Created\",\n        \"weight\": \"Bolder\",\n        \"size\": \"Medium\",\n        \"color\": \"Attention\"\n      },\n      {\n        \"type\": \"FactSet\",\n        \"facts\": [\n          {\n            \"title\": \"Issue:\",\n            \"value\": \"{{ $json.issue.key }} - {{ $json.issue.fields.summary }}\"\n          },\n          {\n            \"title\": \"Priority:\",\n            \"value\": \"{{ $json.issue.fields.priority.name }}\"\n          },\n          {\n            \"title\": \"Assignee:\",\n            \"value\": \"{{ $json.issue.fields.assignee ? $json.issue.fields.assignee.displayName : 'Unassigned' }}\"\n          },\n          {\n            \"title\": \"Reporter:\",\n            \"value\": \"{{ $json.issue.fields.reporter.displayName }}\"\n          }\n        ]\n      }\n    ],\n    \"actions\": [\n      {\n        \"type\": \"Action.OpenUrl\",\n        \"title\": \"View in Jira\",\n        \"url\": \"{{ $json.issue.self.replace('/rest/api/3/issue/' + $json.issue.id, '/browse/' + $json.issue.key) }}\"\n      }\n    ]\n  }\n}]"
+            }
+          ]
+        }
+      },
+      "id": "teams-critical-alert",
+      "name": "Teams Critical Alert", 
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "webhook": {
+          "url": "YOUR_TEAMS_WEBHOOK_URL_UPDATES"
+        },
+        "httpMethod": "POST",
+        "sendBinaryData": false,
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "📋 **Issue Status Update**\n\n**{{ $json.issue.key }}**: {{ $json.issue.fields.summary }}\n\n**Status**: {{ $json.issue.fields.status.name }}\n**Assignee**: {{ $json.issue.fields.assignee ? $json.issue.fields.assignee.displayName : 'Unassigned' }}\n\n[View in Jira]({{ $json.issue.self.replace('/rest/api/3/issue/' + $json.issue.id, '/browse/' + $json.issue.key) }})"
+            }
+          ]
+        }
+      },
+      "id": "teams-status-update",
+      "name": "Teams Status Update",
+      "type": "n8n-nodes-base.httpRequest", 
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Webhook received successfully"
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "webhook-jira": {
+      "main": [
+        [
+          {
+            "node": "filter-critical",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "filter-status-change", 
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "filter-critical": {
+      "main": [
+        [
+          {
+            "node": "teams-critical-alert",
+            "type": "main", 
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "filter-status-change": {
+      "main": [
+        [
+          {
+            "node": "teams-status-update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "teams-critical-alert": {
+      "main": [
+        [
+          {
+            "node": "webhook-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "teams-status-update": {
+      "main": [
+        [
+          {
+            "node": "webhook-response", 
+            "type": "main",
+            "index": 0
+          }
+        ]  
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1"
+} 

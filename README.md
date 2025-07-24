@@ -1,93 +1,251 @@
-# N8n
+# N8N Self-Hosted Setup
 
+Production-ready n8n workflow automation platform with PostgreSQL and Redis.
 
+## 🏗️ Architecture
 
-## Getting started
+This setup includes:
+- **n8n**: Workflow automation platform
+- **PostgreSQL 16**: Primary database for workflows and credentials
+- **Redis 7**: Queue management and caching
+- **Docker Compose**: Container orchestration
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## 🚀 Quick Start
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+### Prerequisites
+- Docker Engine 20.10+
+- Docker Compose 2.0+
+- At least 2GB RAM
+- 10GB disk space
 
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
+### 1. Clone and Setup
+```bash
+git clone <your-repo-url>
+cd n8n
 ```
-cd existing_repo
-git remote add origin https://gitlab-puppet-new.vndirect.com.vn/cybersec/appsec/n8n.git
-git branch -M main
-git push -uf origin main
+
+### 2. Configure Environment
+```bash
+# Copy environment template
+cp env.template .env
+
+# Generate encryption key
+openssl rand -base64 32
+
+# Edit .env file with your settings
+nano .env
 ```
 
-## Integrate with your tools
+### 3. Start Services
+```bash
+# Production with nginx + SSL (Recommended)
+./scripts/setup-nginx.sh
 
-- [ ] [Set up project integrations](https://gitlab-puppet-new.vndirect.com.vn/cybersec/appsec/n8n/-/settings/integrations)
+# Or production without nginx
+docker-compose -f docker-compose.prod.yml up -d
 
-## Collaborate with your team
+# Or development setup
+docker-compose up -d
+```
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+### 4. Access n8n
+Open http://localhost:5678 in your browser.
 
-## Test and Deploy
+## 👥 User Management Setup
 
-Use the built-in continuous integration in GitLab.
+For multi-user environments, enable user management instead of basic auth:
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+### Quick Setup (Recommended)
+```bash
+# Run the interactive setup script
+./scripts/enable-user-management.sh
+```
 
-***
+### Manual Setup
+1. Update your `.env` file:
+```bash
+N8N_BASIC_AUTH_ACTIVE=false
+N8N_USER_MANAGEMENT_DISABLED=false
+N8N_OWNER_EMAIL=admin@yourcompany.com
+N8N_OWNER_PASSWORD=your-secure-password
+```
 
-# Editing this README
+2. Restart services:
+```bash
+docker-compose -f docker-compose.prod.yml down
+docker-compose -f docker-compose.prod.yml up -d
+```
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+3. Access n8n and complete owner account setup
 
-## Suggestions for a good README
+📚 **See [User Management Guide](./docs/USER_MANAGEMENT.md) for complete documentation**
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+## 🔐 Enterprise Authentication
 
-## Name
-Choose a self-explaining name for your project.
+For enterprise environments, n8n supports Microsoft Entra ID (Azure AD) integration:
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+### Microsoft Entra ID Setup
+```bash
+# Run the Entra ID setup script
+./scripts/setup-entra-id.sh
+```
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+**Features:**
+- ✅ SAML 2.0 Single Sign-On (SSO)
+- ✅ Automatic user provisioning from Azure AD
+- ✅ Role mapping: Azure AD Groups → n8n Roles
+- ✅ Group-based access control
+- ✅ Just-in-Time (JIT) provisioning
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+📚 **See [Entra ID Integration Guide](./docs/ENTRA_ID_INTEGRATION.md) for detailed setup**
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+## 🌐 Production Deployment with Nginx
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+For production environments, especially when using SAML/Entra ID, nginx reverse proxy is **HIGHLY RECOMMENDED**:
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+### Why Nginx?
+- ✅ **SSL/TLS Termination** - Automatic HTTPS with Let's Encrypt
+- ✅ **Security Headers** - XSS protection, HSTS, CSP
+- ✅ **Rate Limiting** - DDoS protection and API throttling
+- ✅ **WebSocket Support** - Proper handling for n8n editor
+- ✅ **SAML Compatibility** - Required for enterprise SSO
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+### Quick Setup
+```bash
+# Setup nginx with automatic SSL
+./scripts/setup-nginx.sh
+```
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+**When to use Nginx:**
+- 🏢 **Production deployments**
+- 🔐 **SAML/Entra ID integration** (HTTPS required)
+- 🌐 **Custom domain access**
+- 🛡️ **Enhanced security requirements**
+- ⚡ **Performance optimization**
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+**Deployment Options:**
+- `docker-compose.yml` - Basic setup (development)
+- `docker-compose.prod.yml` - Production without nginx
+- `docker-compose.nginx.yml` - Production with nginx + SSL
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+## 🔒 Security Best Practices
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+### ✅ Implemented
+- [x] Environment variables for sensitive data
+- [x] Strong encryption key requirement
+- [x] Password-protected Redis
+- [x] Health checks for all services
+- [x] Resource limits
+- [x] Custom Docker network
+- [x] Named volumes for data persistence
+- [x] Timezone configuration
 
-## License
-For open source projects, say how it is licensed.
+### 🔧 Required Configuration
+1. **Change default passwords** in `.env` file
+2. **Generate encryption key**: `openssl rand -base64 32`
+3. **Set strong database password**
+4. **Configure timezone** for your region
+5. **Set proper domain** for production webhooks
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+### 🚨 Production Checklist
+- [ ] **Set up nginx reverse proxy:** `./scripts/setup-nginx.sh`
+- [ ] **Configure SSL certificates** (automatic with Let's Encrypt)
+- [ ] **Disable basic auth, enable user management**
+- [ ] **Consider enterprise SSO** (Entra ID/SAML) for organizations
+- [ ] **Set up backup strategy** for PostgreSQL and n8n data
+- [ ] **Configure monitoring and logging**
+- [ ] **Implement firewall rules** (ports 80, 443 only)
+- [ ] **Use environment variables** for sensitive data
+- [ ] **Regular security updates and backups**
+- [ ] **Test disaster recovery procedures**
+
+## 📊 Monitoring & Maintenance
+
+### Health Checks
+All services include health checks:
+```bash
+# Check service status
+docker-compose ps
+
+# View logs
+docker-compose logs -f n8n
+```
+
+### Backup Strategy
+```bash
+# Backup PostgreSQL data
+docker-compose exec postgres pg_dump -U n8n n8n > backup_$(date +%Y%m%d).sql
+
+# Backup n8n data
+docker-compose exec n8n tar -czf /tmp/n8n_backup.tar.gz /home/node/.n8n
+docker cp $(docker-compose ps -q n8n):/tmp/n8n_backup.tar.gz ./n8n_backup_$(date +%Y%m%d).tar.gz
+```
+
+### Updates
+```bash
+# Update to latest version
+docker-compose pull
+docker-compose down
+docker-compose up -d
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+Key settings in `.env`:
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `N8N_ENCRYPTION_KEY` | 32+ char encryption key | ✅ |
+| `POSTGRES_PASSWORD` | Database password | ✅ |
+| `REDIS_PASSWORD` | Redis password | ✅ |
+| `GENERIC_TIMEZONE` | Your timezone | ✅ |
+| `WEBHOOK_URL` | Public webhook URL | Production |
+
+### Performance Tuning
+- **Memory**: Adjust resource limits in docker-compose.prod.yml
+- **Executions**: Configure `EXECUTIONS_DATA_MAX_AGE` for cleanup
+- **Redis**: Enable for queue management in high-load scenarios
+
+## 🛠️ Development vs Production
+
+### Development (docker-compose.yml)
+- Basic configuration
+- Simplified setup
+- Local development focused
+
+### Production (docker-compose.prod.yml)
+- Health checks
+- Resource limits
+- Security hardening
+- Performance optimization
+
+## 📚 References
+
+- [n8n Docker Documentation](https://docs.n8n.io/hosting/installation/docker)
+- [n8n Hosting Examples](https://github.com/n8n-io/n8n-hosting)
+- [Security Best Practices](https://docs.n8n.io/hosting/security/)
+- [User Management Guide](./docs/USER_MANAGEMENT.md) - Comprehensive guide for multi-user setup
+- [Entra ID Integration Guide](./docs/ENTRA_ID_INTEGRATION.md) - Microsoft Azure AD SAML SSO setup
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🆘 Support
+
+- [n8n Community Forum](https://community.n8n.io/)
+- [n8n Documentation](https://docs.n8n.io/)
+- [GitHub Issues](https://github.com/n8n-io/n8n/issues)
+
+---
+
+**⚠️ Important**: Always use the production configuration (`docker-compose.prod.yml`) for production deployments.

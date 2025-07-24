@@ -1,0 +1,284 @@
+# ===========================================
+# Environment & Configuration Files
+# ===========================================
+# Never commit sensitive configuration
+.env
+.env.*
+!.env.template
+!setup-simple.env
+*.env.backup.*
+
+# Environment backups created by scripts
+.env.backup*
+
+# ===========================================
+# n8n Data & Workflows
+# ===========================================
+# n8n user data and credentials (contains sensitive info)
+.n8n/
+n8n_data/
+
+# Local workflow exports (may contain credentials)
+workflows/exports/
+workflows/backups/
+
+# ===========================================
+# Database & Data Storage
+# ===========================================
+# PostgreSQL data
+.data/
+data/
+postgres_data/
+
+# Redis data
+redis_data/
+
+# Database backups (may contain sensitive data)
+*.sql
+*.sql.gz
+backup*.sql
+*backup*.sql
+n8n-backup*/
+
+# ===========================================
+# SSL Certificates & Security
+# ===========================================
+# SSL certificates and private keys
+nginx/ssl/
+certbot/
+letsencrypt/
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+
+# Let's Encrypt challenges
+nginx/html/.well-known/
+
+# ===========================================
+# Logs & Monitoring
+# ===========================================
+# Application logs
+*.log
+logs/
+nginx/logs/
+nginx/access.log*
+nginx/error.log*
+
+# Docker logs
+docker-logs/
+
+# ===========================================
+# Docker & Container Files
+# ===========================================
+# Docker override files (for local customization)
+docker-compose.override.yml
+docker-compose.local.yml
+docker-compose.dev.yml
+
+# Generated docker files
+docker-compose.nginx-dev.yml
+
+# Container runtime files
+.dockerignore.local
+
+# ===========================================
+# Operating System Files
+# ===========================================
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+.AppleDouble
+.LSOverride
+Icon?
+
+# Windows
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# ===========================================
+# Editor & IDE Files
+# ===========================================
+# Visual Studio Code
+.vscode/
+!.vscode/settings.json.template
+!.vscode/extensions.json.template
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Vim
+*.swp
+*.swo
+*.swn
+Session.vim
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# ===========================================
+# Node.js & JavaScript (if any)
+# ===========================================
+# Dependencies (if using Node.js tools)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# ===========================================
+# Temporary & Cache Files
+# ===========================================
+# General temporary files
+*.tmp
+*.temp
+*.cache
+temp/
+tmp/
+
+# Archive files
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# ===========================================
+# Scripts & Local Tools
+# ===========================================
+# Local development scripts
+scripts/local/
+scripts/dev/
+scripts/*.local.sh
+
+# Script logs
+scripts/*.log
+
+# ===========================================
+# Monitoring & Testing
+# ===========================================
+# Test results
+test-results/
+coverage/
+
+# Performance monitoring
+*.perf
+
+# ===========================================
+# Documentation Builds
+# ===========================================
+# Generated documentation
+docs/build/
+docs/dist/
+
+# ===========================================
+# Cloud & Deployment
+# ===========================================
+# Cloud provider configs (may contain secrets)
+.aws/
+.azure/
+.gcp/
+
+# Terraform files (if used)
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Kubernetes secrets (if used)
+*-secret.yaml
+*-secrets.yaml
+
+# ===========================================
+# Backup & Archive Files
+# ===========================================
+# Various backup files
+*.backup
+*.bak
+*.old
+*.orig
+*~
+
+# Archive and compressed files
+*.tar
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.gz
+*.bz2
+*.xz
+*.zip
+*.rar
+
+# ===========================================
+# Local Configuration & Customization
+# ===========================================
+# Local overrides
+local.yml
+local.yaml
+*.local.*
+
+# Personal notes and docs
+NOTES.md
+TODO.md
+PERSONAL.md
+
+# ===========================================
+# Version Control & Git
+# ===========================================
+# Git backup files
+*.orig
+
+# Patch files
+*.patch
+*.diff
+
+# ===========================================
+# Security & Audit Files
+# ===========================================
+# Security scan results
+security-report.*
+audit-*.json
+vulnerability-*.json
+
+# API keys and tokens (just in case)
+*api-key*
+*token*
+*secret*
+*password*
+*credential*
+
+# ===========================================
+# END OF .gitignore
+# ===========================================
+# Remember: Always review files before committing!
+# Use 'git status' to check what's being tracked 
