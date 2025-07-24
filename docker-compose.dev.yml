@@ -23,8 +23,8 @@ services:
     restart: unless-stopped 
     networks:
       - n8n
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"  # Expose for debugging
+#    ports:
+#      - "${POSTGRES_PORT:-5432}:5432"  # Expose for debugging
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-n8n_dev}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-n8n_dev_pass}
