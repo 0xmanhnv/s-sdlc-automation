@@ -1,0 +1,677 @@
+{
+  "name": "🔒 Jira SAST Security Review Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "jira-security-review",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "webhook-jira-issue",
+      "name": "Jira Issue Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ],
+      "webhookId": "jira-security-review"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "security-label-check",
+              "leftValue": "={{ $json.issue.fields.labels }}",
+              "rightValue": "security-review",
+              "operator": {
+                "type": "array",
+                "operation": "contains",
+                "singleValue": "security-review"
+              }
+            },
+            {
+              "id": "issue-type-check",
+              "leftValue": "={{ $json.issue.fields.issuetype.name }}",
+              "rightValue": "Story,Task,Bug,Epic",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combineOperation": "all"
+        },
+        "options": {}
+      },
+      "id": "filter-security-issues",
+      "name": "Filter Security Issues",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "basicAuth",
+        "url": "={{ $json.issue.self.replace('/rest/api/3/issue/' + $json.issue.key, '') }}/rest/api/3/issue/{{ $json.issue.key }}/subtask",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "={{ {\n  \"project\": {\n    \"key\": $json.issue.fields.project.key\n  },\n  \"parent\": {\n    \"key\": $json.issue.key\n  },\n  \"summary\": \"🔒 Security Review: \" + $json.issue.fields.summary,\n  \"description\": {\n    \"type\": \"doc\",\n    \"version\": 1,\n    \"content\": [\n      {\n        \"type\": \"paragraph\",\n        \"content\": [\n          {\n            \"type\": \"text\",\n            \"text\": \"Security review task for: \" + $json.issue.fields.summary\n          }\n        ]\n      },\n      {\n        \"type\": \"paragraph\",\n        \"content\": [\n          {\n            \"type\": \"text\",\n            \"text\": \"📋 Review Checklist:\"\n          }\n        ]\n      },\n      {\n        \"type\": \"bulletList\",\n        \"content\": [\n          {\n            \"type\": \"listItem\",\n            \"content\": [\n              {\n                \"type\": \"paragraph\",\n                \"content\": [\n                  {\n                    \"type\": \"text\",\n                    \"text\": \"SAST scan completed\"\n                  }\n                ]\n              }\n            ]\n          },\n          {\n            \"type\": \"listItem\",\n            \"content\": [\n              {\n                \"type\": \"paragraph\",\n                \"content\": [\n                  {\n                    \"type\": \"text\",\n                    \"text\": \"Security vulnerabilities assessed\"\n                  }\n                ]\n              }\n            ]\n          },\n          {\n            \"type\": \"listItem\",\n            \"content\": [\n              {\n                \"type\": \"paragraph\",\n                \"content\": [\n                  {\n                    \"type\": \"text\",\n                    \"text\": \"Risk level evaluated\"\n                  }\n                ]\n              }\n            ]\n          },\n          {\n            \"type\": \"listItem\",\n            \"content\": [\n              {\n                \"type\": \"paragraph\",\n                \"content\": [\n                  {\n                    \"type\": \"text\",\n                    \"text\": \"Remediation plan created\"\n                  }\n                ]\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  },\n  \"issuetype\": {\n    \"name\": \"Sub-task\"\n  },\n  \"assignee\": {\n    \"accountId\": \"{{ $vars.SECURITY_TEAM_LEAD_ID }}\" || \"auto\"\n  },\n  \"labels\": [\"security-review\", \"sast-pending\", \"auto-created\"],\n  \"priority\": {\n    \"name\": $json.issue.fields.priority?.name || \"Medium\"\n  }\n} }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "create-security-subtask",
+      "name": "Create Security Sub-task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        600,
+        200
+      ],
+      "credentials": {
+        "basicAuth": {
+          "id": "jira-auth",
+          "name": "Jira Basic Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sast-results",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "webhook-sast-results",
+      "name": "SAST Results Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        200,
+        600
+      ],
+      "webhookId": "sast-results"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "project-key",
+              "name": "projectKey",
+              "value": "={{ $json.project?.key || $json.projectKey || 'UNKNOWN' }}",
+              "type": "string"
+            },
+            {
+              "id": "scan-tool",
+              "name": "scanTool",
+              "value": "={{ $json.tool || $json.scanner || $json.source || 'SAST' }}",
+              "type": "string"
+            },
+            {
+              "id": "total-issues",
+              "name": "totalIssues",
+              "value": "={{ $json.issues?.length || $json.findings?.length || $json.vulnerabilities?.length || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "high-severity",
+              "name": "highSeverity",
+              "value": "={{ ($json.issues || $json.findings || $json.vulnerabilities || []).filter(issue => (issue.severity || issue.priority || '').toLowerCase().includes('high') || (issue.severity || issue.priority || '').toLowerCase().includes('critical')).length }}",
+              "type": "number"
+            },
+            {
+              "id": "medium-severity",
+              "name": "mediumSeverity", 
+              "value": "={{ ($json.issues || $json.findings || $json.vulnerabilities || []).filter(issue => (issue.severity || issue.priority || '').toLowerCase().includes('medium')).length }}",
+              "type": "number"
+            },
+            {
+              "id": "low-severity",
+              "name": "lowSeverity",
+              "value": "={{ ($json.issues || $json.findings || $json.vulnerabilities || []).filter(issue => (issue.severity || issue.priority || '').toLowerCase().includes('low')).length }}",
+              "type": "number"
+            },
+            {
+              "id": "scan-timestamp",
+              "name": "scanTimestamp",
+              "value": "={{ $json.timestamp || $json.scanDate || $json.createdAt || new Date().toISOString() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "process-sast-data",
+      "name": "Process SAST Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        400,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-high-severity",
+              "leftValue": "={{ $json.highSeverity }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combineOperation": "any"
+        },
+        "options": {}
+      },
+      "id": "check-severity",
+      "name": "Check Severity Level",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        600,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "basicAuth",
+        "url": "={{ $vars.JIRA_BASE_URL }}/rest/api/3/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "jql",
+              "value": "project = {{ $json.projectKey }} AND labels = sast-pending AND status != Done"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "find-security-tasks",
+      "name": "Find Security Tasks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        800,
+        600
+      ],
+      "credentials": {
+        "basicAuth": {
+          "id": "jira-auth",
+          "name": "Jira Basic Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "basicAuth",
+        "url": "={{ $vars.JIRA_BASE_URL }}/rest/api/3/issue/{{ $json.issues[0].key }}/comment",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "body",
+              "value": "={{ {\n  \"type\": \"doc\",\n  \"version\": 1,\n  \"content\": [\n    {\n      \"type\": \"paragraph\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"🔍 SAST Scan Results - \" + $('Process SAST Data').item.json.scanTool,\n          \"marks\": [\n            {\n              \"type\": \"strong\"\n            }\n          ]\n        }\n      ]\n    },\n    {\n      \"type\": \"paragraph\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"Scan completed: \" + new Date($('Process SAST Data').item.json.scanTimestamp).toLocaleString()\n        }\n      ]\n    },\n    {\n      \"type\": \"paragraph\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"📊 Summary:\"\n        }\n      ]\n    },\n    {\n      \"type\": \"bulletList\",\n      \"content\": [\n        {\n          \"type\": \"listItem\",\n          \"content\": [\n            {\n              \"type\": \"paragraph\",\n              \"content\": [\n                {\n                  \"type\": \"text\",\n                  \"text\": \"🔴 High/Critical: \" + $('Process SAST Data').item.json.highSeverity\n                }\n              ]\n            }\n          ]\n        },\n        {\n          \"type\": \"listItem\",\n          \"content\": [\n            {\n              \"type\": \"paragraph\",\n              \"content\": [\n                {\n                  \"type\": \"text\",\n                  \"text\": \"🟡 Medium: \" + $('Process SAST Data').item.json.mediumSeverity\n                }\n              ]\n            }\n          ]\n        },\n        {\n          \"type\": \"listItem\",\n          \"content\": [\n            {\n              \"type\": \"paragraph\",\n              \"content\": [\n                {\n                  \"type\": \"text\",\n                  \"text\": \"🟢 Low: \" + $('Process SAST Data').item.json.lowSeverity\n                }\n              ]\n            }\n          ]\n        },\n        {\n          \"type\": \"listItem\",\n          \"content\": [\n            {\n              \"type\": \"paragraph\",\n              \"content\": [\n                {\n                  \"type\": \"text\",\n                  \"text\": \"📋 Total Issues: \" + $('Process SAST Data').item.json.totalIssues\n                }\n              ]\n            }\n          ]\n        }\n      ]\n    },\n    {\n      \"type\": \"paragraph\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": $('Process SAST Data').item.json.highSeverity > 0 ? \"⚠️ Action Required: High/Critical vulnerabilities found. Please review immediately.\" : \"✅ No critical vulnerabilities detected.\"\n        }\n      ]\n    }\n  ]\n} }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "update-security-task",
+      "name": "Update Security Task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1000,
+        600
+      ],
+      "credentials": {
+        "basicAuth": {
+          "id": "jira-auth",
+          "name": "Jira Basic Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "no-high-issues",
+              "leftValue": "={{ $('Process SAST Data').item.json.highSeverity }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equal"
+              }
+            },
+            {
+              "id": "total-low-issues",
+              "leftValue": "={{ $('Process SAST Data').item.json.totalIssues }}",
+              "rightValue": 5,
+              "operator": {
+                "type": "number",
+                "operation": "lte"
+              }
+            }
+          ],
+          "combineOperation": "all"
+        },
+        "options": {}
+      },
+      "id": "auto-approve-check",
+      "name": "Auto-Approve Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "basicAuth",
+        "url": "={{ $vars.JIRA_BASE_URL }}/rest/api/3/issue/{{ $('Find Security Tasks').item.json.issues[0].key }}/transitions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "transition",
+              "value": "={{ { \"id\": \"31\" } }}"
+            },
+            {
+              "name": "fields",
+              "value": "={{ {\n  \"resolution\": {\n    \"name\": \"Done\"\n  }\n} }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "auto-complete-task",
+      "name": "Auto-Complete Task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1400,
+        500
+      ],
+      "credentials": {
+        "basicAuth": {
+          "id": "jira-auth",
+          "name": "Jira Basic Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.TEAMS_SECURITY_WEBHOOK }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "message"
+            },
+            {
+              "name": "attachments",
+              "value": "=[{\n  \"contentType\": \"application/vnd.microsoft.card.adaptive\",\n  \"content\": {\n    \"type\": \"AdaptiveCard\",\n    \"version\": \"1.0\",\n    \"body\": [\n      {\n        \"type\": \"TextBlock\",\n        \"text\": \"🚨 Critical Security Alert\",\n        \"weight\": \"Bolder\",\n        \"size\": \"Large\",\n        \"color\": \"Attention\"\n      },\n      {\n        \"type\": \"TextBlock\",\n        \"text\": \"High severity vulnerabilities detected in \" + $('Process SAST Data').item.json.projectKey,\n        \"wrap\": true\n      },\n      {\n        \"type\": \"FactSet\",\n        \"facts\": [\n          {\n            \"title\": \"Scanner\",\n            \"value\": $('Process SAST Data').item.json.scanTool\n          },\n          {\n            \"title\": \"Critical/High\",\n            \"value\": $('Process SAST Data').item.json.highSeverity.toString()\n          },\n          {\n            \"title\": \"Medium\",\n            \"value\": $('Process SAST Data').item.json.mediumSeverity.toString()\n          },\n          {\n            \"title\": \"Total Issues\",\n            \"value\": $('Process SAST Data').item.json.totalIssues.toString()\n          },\n          {\n            \"title\": \"Scan Time\",\n            \"value\": new Date($('Process SAST Data').item.json.scanTimestamp).toLocaleString()\n          }\n        ]\n      }\n    ],\n    \"actions\": [\n      {\n        \"type\": \"Action.OpenUrl\",\n        \"title\": \"View in Jira\",\n        \"url\": $vars.JIRA_BASE_URL + \"/browse/\" + $('Find Security Tasks').item.json.issues[0].key\n      }\n    ]\n  }\n}]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "alert-security-team",
+      "name": "Alert Security Team",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1400,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $vars.TEAMS_GENERAL_WEBHOOK }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "message"
+            },
+            {
+              "name": "attachments",
+              "value": "=[{\n  \"contentType\": \"application/vnd.microsoft.card.adaptive\",\n  \"content\": {\n    \"type\": \"AdaptiveCard\",\n    \"version\": \"1.0\",\n    \"body\": [\n      {\n        \"type\": \"TextBlock\",\n        \"text\": \"✅ Security Review Passed\",\n        \"weight\": \"Bolder\",\n        \"size\": \"Large\",\n        \"color\": \"Good\"\n      },\n      {\n        \"type\": \"TextBlock\",\n        \"text\": \"Security scan completed successfully for \" + $('Process SAST Data').item.json.projectKey,\n        \"wrap\": true\n      },\n      {\n        \"type\": \"FactSet\",\n        \"facts\": [\n          {\n            \"title\": \"Scanner\",\n            \"value\": $('Process SAST Data').item.json.scanTool\n          },\n          {\n            \"title\": \"Issues Found\",\n            \"value\": $('Process SAST Data').item.json.totalIssues.toString()\n          },\n          {\n            \"title\": \"Status\",\n            \"value\": \"Auto-approved ✅\"\n          },\n          {\n            \"title\": \"Scan Time\",\n            \"value\": new Date($('Process SAST Data').item.json.scanTimestamp).toLocaleString()\n          }\n        ]\n      }\n    ]\n  }\n}]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "notify-success",
+      "name": "Notify Success",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "=Security review task created successfully for {{ $json.fields.summary }}"
+      },
+      "id": "webhook-response-success",
+      "name": "Webhook Response Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        800,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Issue does not require security review"
+      },
+      "id": "webhook-response-skip",
+      "name": "Webhook Response Skip",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "=SAST results processed for {{ $('Process SAST Data').item.json.projectKey }}. {{ $('Process SAST Data').item.json.totalIssues }} issues found."
+      },
+      "id": "webhook-response-sast",
+      "name": "Webhook Response SAST",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        600
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Jira Issue Webhook": {
+      "main": [
+        [
+          {
+            "node": "Filter Security Issues",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Security Issues": {
+      "main": [
+        [
+          {
+            "node": "Create Security Sub-task",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Webhook Response Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Security Sub-task": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SAST Results Webhook": {
+      "main": [
+        [
+          {
+            "node": "Process SAST Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process SAST Data": {
+      "main": [
+        [
+          {
+            "node": "Check Severity Level",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Severity Level": {
+      "main": [
+        [
+          {
+            "node": "Find Security Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Find Security Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Security Tasks": {
+      "main": [
+        [
+          {
+            "node": "Update Security Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Security Task": {
+      "main": [
+        [
+          {
+            "node": "Auto-Approve Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-Approve Check": {
+      "main": [
+        [
+          {
+            "node": "Auto-Complete Task",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert Security Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-Complete Task": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response SAST",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Security Team": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response SAST",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Success": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response SAST",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": {
+      "id": "error-handler-workflow"
+    }
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "jira-sast-security-review",
+  "tags": [
+    {
+      "createdAt": "2024-07-25T06:52:00.000Z",
+      "updatedAt": "2024-07-25T06:52:00.000Z",
+      "id": "devsecops",
+      "name": "devsecops"
+    },
+    {
+      "createdAt": "2024-07-25T06:52:00.000Z", 
+      "updatedAt": "2024-07-25T06:52:00.000Z",
+      "id": "security-automation",
+      "name": "security-automation"
+    },
+    {
+      "createdAt": "2024-07-25T06:52:00.000Z",
+      "updatedAt": "2024-07-25T06:52:00.000Z", 
+      "id": "jira-integration",
+      "name": "jira-integration"
+    }
+  ]
+} 

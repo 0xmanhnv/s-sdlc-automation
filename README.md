@@ -17,7 +17,7 @@ cp env.template .env
 #### **🔧 Development Environment**
 ```bash
 # Simple setup: PostgreSQL + n8n only
-docker-compose -f docker-compose.dev.yml up -d
+docker-compose up -d
 
 # Access: http://localhost:5678
 ```
@@ -62,13 +62,13 @@ N8N_USER_MANAGEMENT_DISABLED=true
 ### **Usage**
 ```bash
 # Start development environment
-docker-compose -f docker-compose.dev.yml up -d
+docker-compose up -d
 
 # View logs
-docker-compose -f docker-compose.dev.yml logs -f
+docker-compose logs -f
 
 # Stop
-docker-compose -f docker-compose.dev.yml down
+docker-compose down
 ```
 
 ### **Development Features**
@@ -391,8 +391,9 @@ This project is licensed under the MIT License.
 
 ```
 n8n/
-├── docker-compose.dev.yml      # Development environment
+├── docker-compose.yml          # Development environment
 ├── docker-compose.prod.yml     # Production environment  
+├── docker-compose.devsecops.yml # DevSecOps environment
 ├── env.template               # Environment variables template
 ├── .gitignore                # Git ignore rules
 ├── README.md                 # This file
@@ -400,17 +401,22 @@ n8n/
 ├── docs/                    # Documentation
 │   ├── USER_MANAGEMENT.md
 │   ├── ENTRA_ID_INTEGRATION.md
-│   ├── JIRA_TEAMS_AUTOMATION.md
-│   └── GITIGNORE_GUIDE.md
+│   ├── JIRA_TEAMS_AUTOMATION_GUIDE.md
+│   ├── GITIGNORE_GUIDE.md
+│   ├── DOCKER_COMPOSE_USAGE.md
+│   ├── n8n-devsecops-deployment-guide.md
+│   └── jira-teams-flow-diagram.txt
 ├── scripts/                 # Automation scripts
 │   ├── enable-user-management.sh
 │   ├── setup-entra-id.sh
-│   └── setup-nginx.sh
+│   ├── setup-nginx.sh
+│   └── setup-queue-redis.sh
 ├── nginx/                   # Nginx configuration
 │   ├── nginx.conf
 │   └── html/
 └── workflows/              # n8n workflow templates
-    └── jira-teams-automation.json
+    ├── jira-teams-automation.json
+    └── jira_sast_security_review_workflow.json
 ```
 
 **🎉 Happy Automating with n8n!** 🤖

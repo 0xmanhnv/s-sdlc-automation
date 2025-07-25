@@ -36,7 +36,7 @@ Jira Cloud → Webhook → n8n Processing → Teams Notification
 - [ ] Target channels identified
 
 ### **n8n:**
-- [ ] n8n instance running (use `docker-compose.dev.yml` for development or `docker-compose.prod.yml` for production)
+- [ ] n8n instance running (use `docker-compose up -d` for development or `docker-compose -f docker-compose.prod.yml up -d` for production)
 - [ ] Web interface accessible
 - [ ] Webhook URLs available
 

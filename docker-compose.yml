@@ -2,7 +2,7 @@
 # n8n Development Environment
 # ===========================================
 # Simplified setup for local development
-# Usage: docker-compose -f docker-compose.dev.yml up -d
+# Usage: docker-compose up -d
 
 version: '3.8'
 
