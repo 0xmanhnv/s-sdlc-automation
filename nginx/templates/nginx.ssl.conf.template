@@ -1,5 +1,5 @@
 # ===========================================
-# N8N Production Nginx Configuration
+# N8N Production Nginx SSL Configuration
 # ===========================================
 
 events {
@@ -10,22 +10,21 @@ http {
     include       /etc/nginx/mime.types;
     default_type  application/octet-stream;
 
-    # Optimizations
+    # Performance tuning
     sendfile on;
     tcp_nopush on;
     tcp_nodelay on;
     keepalive_timeout 65;
     types_hash_max_size 2048;
     client_max_body_size 100M;
-    
-    # Hide nginx version
+
+    # Hide version info
     server_tokens off;
 
     # Logging
     log_format main '$remote_addr - $remote_user [$time_local] "$request" '
                     '$status $body_bytes_sent "$http_referer" '
                     '"$http_user_agent" "$http_x_forwarded_for"';
-
     access_log /var/log/nginx/access.log main;
     error_log /var/log/nginx/error.log warn;
 
@@ -33,47 +32,42 @@ http {
     gzip on;
     gzip_vary on;
     gzip_min_length 10240;
-    gzip_proxied expired no-cache no-store private must-revalidate auth;
+    gzip_proxied any;
     gzip_types
         text/plain
         text/css
-        text/xml
         text/javascript
-        application/x-javascript
-        application/xml+rss
         application/javascript
-        application/json;
+        application/json
+        application/xml
+        application/xml+rss;
 
     # Rate limiting
     limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
     limit_req_zone $binary_remote_addr zone=login:10m rate=1r/s;
-    
-    # SSL Configuration
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
-    ssl_prefer_server_ciphers off;
-    ssl_session_cache shared:SSL:10m;
-    ssl_session_timeout 10m;
 
-    # Security headers
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https:; connect-src 'self' ws: wss:;" always;
+    # Upstream n8n backend
+    upstream n8n {
+        server n8n:5678;
+    }
 
-    # HTTP to HTTPS redirect
+    # Redirect HTTP to HTTPS (Certbot ACME)
     server {
         listen 80;
         server_name ${DOMAIN_NAME};
-        
-        # Let's Encrypt challenge
+
         location /.well-known/acme-challenge/ {
             root /var/www/certbot;
         }
-        
+
+        location /.well-known/security.txt {
+            root /var/www/certbot;
+            default_type text/plain;
+            access_log off;
+        }
+
         location / {
-            return 301 https://$server_name$request_uri;
+            return 301 https://$host$request_uri;
         }
     }
 
@@ -81,19 +75,39 @@ http {
     server {
         listen 443 ssl http2;
         server_name ${DOMAIN_NAME};
-        
-        # SSL certificates
-        ssl_certificate /etc/letsencrypt/live/${DOMAIN_NAME}/fullchain.pem;
-        ssl_certificate_key /etc/letsencrypt/live/${DOMAIN_NAME}/privkey.pem;
-        
-        # HSTS
-        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
 
-        # Webhook endpoints - higher rate limit
+        # SSL Certificates
+        ssl_certificate     /etc/nginx/ssl/certificate.crt;
+        ssl_certificate_key /etc/nginx/ssl/certificate.key;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384';
+        ssl_prefer_server_ciphers off;
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 10m;
+
+        # Security Headers
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Permissions-Policy "interest-cohort=()" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https:; connect-src 'self' ws: wss:;" always;
+
+        # Certbot + security.txt
+        location /.well-known/acme-challenge/ {
+            root /var/www/certbot;
+        }
+
+        location /.well-known/security.txt {
+            root /var/www/certbot;
+            default_type text/plain;
+            access_log off;
+        }
+
+        # Webhook (long timeout)
         location ~* ^/(webhook|form)/ {
             limit_req zone=api burst=20 nodelay;
-            
-            proxy_pass http://n8n:5678;
+            proxy_pass http://n8n;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection 'upgrade';
@@ -101,36 +115,29 @@ http {
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
-            proxy_cache_bypass $http_upgrade;
-            
-            # Timeout settings for long-running workflows
             proxy_connect_timeout 300s;
             proxy_send_timeout 300s;
             proxy_read_timeout 300s;
         }
 
-        # SAML endpoints - specific security handling
+        # SAML SSO
         location ~* ^/rest/sso/saml/ {
             limit_req zone=login burst=5 nodelay;
-            
-            proxy_pass http://n8n:5678;
+            proxy_pass http://n8n;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
-            
-            # Additional security for SAML
             proxy_buffer_size 64k;
             proxy_buffers 8 64k;
             proxy_busy_buffers_size 64k;
         }
 
-        # API endpoints
+        # API
         location /rest/ {
             limit_req zone=api burst=10 nodelay;
-            
-            proxy_pass http://n8n:5678;
+            proxy_pass http://n8n;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
@@ -138,9 +145,9 @@ http {
             proxy_set_header X-Forwarded-Proto $scheme;
         }
 
-        # WebSocket support for editor
+        # WebSocket
         location /socket.io/ {
-            proxy_pass http://n8n:5678;
+            proxy_pass http://n8n;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection "upgrade";
@@ -150,11 +157,10 @@ http {
             proxy_set_header X-Forwarded-Proto $scheme;
         }
 
-        # Main application
+        # Main UI
         location / {
             limit_req zone=api burst=20 nodelay;
-            
-            proxy_pass http://n8n:5678;
+            proxy_pass http://n8n;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection 'upgrade';
@@ -162,24 +168,17 @@ http {
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
-            proxy_cache_bypass $http_upgrade;
         }
 
-        # Health check endpoint
+        # Health check
         location /healthz {
-            proxy_pass http://n8n:5678/healthz;
+            proxy_pass http://n8n/healthz;
             access_log off;
         }
 
-        # Block common attack vectors
+        # Deny sensitive files
         location ~* \.(env|git|svn|htaccess|htpasswd)$ {
             deny all;
         }
-
-        # Security.txt
-        location /security.txt {
-            return 200 "Contact: security@yourcompany.com\nExpires: 2025-12-31T23:59:59.000Z\n";
-            add_header Content-Type text/plain;
-        }
     }
-} 
+}
