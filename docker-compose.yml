@@ -1,41 +1,49 @@
-# ===========================================
-# n8n Development Environment
-# ===========================================
-# Simplified setup for local development
-# Usage: docker-compose up -d
-
-version: '3.8'
-
 networks:
   n8n:
     driver: bridge
 
 volumes:
   postgres_data:
-    driver: local
+  redis_data:
   n8n_data:
-    driver: local
+  nginx_logs:
 
 services:
   postgres:
     image: postgres:16-alpine
     container_name: n8n_postgres
-    restart: unless-stopped 
+    restart: unless-stopped
     networks:
       - n8n
-#    ports:
-#      - "${POSTGRES_PORT:-5432}:5432"  # Expose for debugging
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-n8n_dev}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-n8n_dev_pass}
-      POSTGRES_DB: ${POSTGRES_DB:-n8n_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-n8n}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-n8n}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=en_US.UTF-8 --lc-ctype=en_US.UTF-8"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-n8n_dev} -d ${POSTGRES_DB:-n8n_dev}"]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-n8n} -d ${POSTGRES_DB:-n8n}"]
+      interval: 30s
+      timeout: 10s
       retries: 3
+      start_period: 60s
+
+  redis:
+    image: redis:7-alpine
+    container_name: n8n_redis
+    restart: unless-stopped
+    networks:
+      - n8n
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   n8n:
     image: docker.n8n.io/n8nio/n8n:${N8N_VERSION:-1.104.0}
@@ -43,53 +51,73 @@ services:
     restart: unless-stopped
     networks:
       - n8n
-    ports:
-      - "${N8N_PORT:-5678}:5678"
     environment:
-      # Development Mode
-      - NODE_ENV=development
-      - N8N_LOG_LEVEL=debug
-      - N8N_LOG_OUTPUT=console
-      
-      # Database Configuration
+      - NODE_ENV=production
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres
       - DB_POSTGRESDB_PORT=5432
-      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-n8n_dev}
-      - DB_POSTGRESDB_USER=${POSTGRES_USER:-n8n_dev}
-      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-n8n_dev_pass}
-      
-      # Security (Basic for dev)
-      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-dev-key-32-chars-minimum-required}
-      - N8N_USER_MANAGEMENT_DISABLED=${N8N_USER_MANAGEMENT_DISABLED:-true}
-      - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE:-false}
-      
-      # Server Configuration
-      - N8N_HOST=${N8N_HOST:-localhost}
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-n8n}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER:-n8n}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_POSTGRESDB_SCHEMA=${POSTGRES_SCHEMA:-public}
+      - QUEUE_MODE=true
+      - EXECUTIONS_MODE=queue
+      - QUEUE_BULL_REDIS_HOST=redis
+      - QUEUE_BULL_REDIS_PORT=6379
+      - QUEUE_BULL_REDIS_DB=0
+      - QUEUE_BULL_REDIS_PASSWORD=${REDIS_PASSWORD}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - N8N_HOST=${N8N_HOST}
       - N8N_PORT=5678
-      - N8N_PROTOCOL=http
-      - WEBHOOK_URL=http://localhost:${N8N_PORT:-5678}
-      
-      # Development Features
-      - N8N_DISABLE_PRODUCTION_MAIN_PROCESS=false
-      - N8N_SKIP_WEBHOOK_DEREGISTRATION_SHUTDOWN=true
-      - EXECUTIONS_DATA_SAVE_ON_ERROR=all
-      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=all
-      - EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS=true
-      
-      # Timezone
-      - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
-      - TZ=Asia/Ho_Chi_Minh
-      
+      - N8N_PROTOCOL=https
+      - WEBHOOK_URL=https://${N8N_HOST}
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-Asia/Ho_Chi_Minh}
+      - TZ=${TZ:-Asia/Ho_Chi_Minh}
     volumes:
       - n8n_data:/home/node/.n8n
-      # Mount local workflows for development (optional)
-      # - ./workflows:/home/node/.n8n/workflows:rw
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5678/healthz || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3 
+      retries: 3
+      start_period: 60s
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: n8n_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN_NAME=${N8N_HOST:-localhost}
+    networks:
+      - n8n
+    volumes:
+      - ./nginx/templates:/etc/nginx/templates:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    command: >
+      sh -c '
+        if [ -f /etc/nginx/ssl/certificate.crt ] && [ -f /etc/nginx/ssl/certificate.key ]; then
+          echo "🔐 Using HTTPS config";
+          envsubst "$${DOMAIN_NAME}" < /etc/nginx/templates/nginx.ssl.conf.template > /etc/nginx/nginx.conf;
+        else
+          echo "🌐 Using HTTP config";
+          envsubst "$${DOMAIN_NAME}" < /etc/nginx/templates/nginx.http.conf.template > /etc/nginx/nginx.conf;
+        fi &&
+        nginx -g "daemon off;"
+      '
+    depends_on:
+      n8n:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

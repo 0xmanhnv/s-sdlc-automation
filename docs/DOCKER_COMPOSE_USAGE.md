@@ -1,14 +1,14 @@
 # 🐳 Docker Compose Usage Guide
 
-## 📋 **Optimized Structure (3 Files)**
+## 📋 **Current Structure (1 File)**
 
-After careful consideration and user feedback, we have **3 SPECIALIZED FILES** for different use cases:
+The project currently uses a **single optimized docker-compose.yml** file that supports both development and production:
 
 ```
-├── docker-compose.yml          # 🔧 Development (Default)
-├── docker-compose.prod.yml     # 🏭 Production + Scaling
-└── docker-compose.devsecops.yml # 🔒 DevSecOps (Ready-to-Deploy)
+├── docker-compose.yml          # 🔧 Development & Production (Unified)
 ```
+
+**Note**: The documentation previously referenced separate production and DevSecOps files, but the current implementation uses a unified approach with environment-based configuration.
 
 ## 🤔 **Why 3 Files? User Feedback Integration**
 
@@ -49,27 +49,27 @@ docker-compose up -d
 
 ---
 
-## 🏭 **Production Usage (Flexible)**
+## 🏭 **Production Usage (Unified)**
 
-### **Single Instance (Default)**
+### **Production Deployment**
 ```bash
 # Standard production deployment
-docker-compose -f docker-compose.prod.yml up -d
+docker-compose up -d
 
-# Access: https://your-domain.com
+# Access: https://your-domain.com (with SSL setup)
 ```
 
-### **Dynamic Scaling (DevOps Teams)**
+### **Environment Configuration**
 ```bash
-# Scale with 2 workers for higher load
-docker-compose -f docker-compose.prod.yml up -d --scale n8n-worker=2
+# For production, update .env file:
+N8N_HOST=your-domain.com
+SSL_EMAIL=admin@your-domain.com
 
-# Scale with 4 workers for enterprise load
-docker-compose -f docker-compose.prod.yml up -d --scale n8n-worker=4
-
-# Remove workers when load decreases
-docker-compose -f docker-compose.prod.yml up -d --scale n8n-worker=0
+# Then deploy
+docker-compose up -d
 ```
+
+**Note**: The current setup uses Redis queue mode for better performance and reliability in production environments.
 
 ### **Features:**
 - ✅ **Complete Stack**: PostgreSQL + Redis + n8n + Nginx + SSL (5 services)
@@ -79,16 +79,18 @@ docker-compose -f docker-compose.prod.yml up -d --scale n8n-worker=0
 
 ---
 
-## 🔒 **DevSecOps Usage (Specialized)**
+## 🔒 **DevSecOps Usage (Unified)**
 
-### **One-Command Deployment**
+### **Security Team Deployment**
 ```bash
-# Security team deployment - everything pre-configured
-docker-compose -f docker-compose.devsecops.yml up -d
+# Security team deployment - unified approach
+docker-compose up -d
 
 # Access: https://your-domain.com
-# Workers: Pre-configured 2 workers ready for SAST automation
+# Features: Redis queue mode for parallel security workflow processing
 ```
+
+**Note**: The current unified setup supports DevSecOps workflows through Redis queue processing and environment-based configuration.
 
 ### **Features:**
 - ✅ **Pre-configured Workers**: 1 Main + 2 Workers (3 n8n instances)
