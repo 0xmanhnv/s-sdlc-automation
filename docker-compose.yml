@@ -73,6 +73,9 @@ services:
       - WEBHOOK_URL=https://${N8N_HOST}
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-Asia/Ho_Chi_Minh}
       - TZ=${TZ:-Asia/Ho_Chi_Minh}
+      - N8N_AUTHENTICATION=${N8N_AUTHENTICATION:-api}
+      - N8N_API_KEY=${N8N_API_KEY}
+      - N8N_API_AUTH_ACTIVE=${N8N_API_AUTH_ACTIVE:-true}
     volumes:
       - n8n_data:/home/node/.n8n
     depends_on:
